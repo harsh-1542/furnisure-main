@@ -2,9 +2,13 @@ import axios from 'axios';
 
 // Define the base URL for your API
 // const API_URL = 'http://localhost:5000/api'; // Update this with your actual API URL
-const API_URL = import.meta.env.BACKENDURL;
+const API_URL = import.meta.env.VITE_BACKENDURL;
 // const API_URL = 'http://192.168.83.219:5000/api'; // Update this with your actual API URL
 // const API_URL = 'https://furnisure-backend.onrender.com/api'; // Update this with your actual API URL
+
+if (!API_URL) {
+  console.warn("⚠️ BACKENDURL is not defined in environment variables");
+}
 
 // Create axios instance with default config
 const api = axios.create({
