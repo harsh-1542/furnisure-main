@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Product } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +10,14 @@ import { ArrowLeft, Star, Package, Truck, Shield, Loader2 } from 'lucide-react';
 import ImageGallery from '@/components/ImageGallery';
 import SuggestedProducts from '@/components/SuggestedProducts';
 import { motion } from 'framer-motion';
+import { inventoryService } from '@/services/inventoryService';
+import { Product } from '@/types/product';
 
 const ProductDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,29 +29,13 @@ const ProductDetails = () => {
 
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching product:', error);
-          toast({
-            title: "Error",
-            description: "Product not found",
-            variant: "destructive",
-          });
-          navigate('/browse');
-          return;
-        }
-
+        const data = await inventoryService.getProductById(id);
         setProduct(data);
       } catch (error) {
         console.error('Error:', error);
         toast({
           title: "Error",
-          description: "Failed to load product",
+          description: "Product not found",
           variant: "destructive",
         });
         navigate('/browse');

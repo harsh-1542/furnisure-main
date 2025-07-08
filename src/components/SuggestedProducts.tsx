@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useProducts } from '@/hooks/useProducts';
 import { Product } from '@/types/product';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,69 +13,22 @@ interface SuggestedProductsProps {
 }
 
 const SuggestedProducts = ({ currentProductId, category, roomType }: SuggestedProductsProps) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading } = useProducts();
 
-  useEffect(() => {
-    const fetchSuggestedProducts = async () => {
-      try {
-        setLoading(true);
-        
-        // First try to get products from the same category
-        let { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category', category)
-          .neq('id', currentProductId)
-          .limit(4);
+  // Filter products: exclude current, prioritize category, then roomType, then random
+  let suggested: Product[] = products.filter(p => p.id !== currentProductId);
+  let categoryProducts = suggested.filter(p => p.category === category);
+  let roomTypeProducts = suggested.filter(p => p.room_type === roomType && !categoryProducts.some(cp => cp.id === p.id));
+  let others = suggested.filter(p => !categoryProducts.some(cp => cp.id === p.id) && !roomTypeProducts.some(rp => rp.id === p.id));
 
-        // If not enough products from the same category, get from the same room type
-        if (data && data.length < 4) {
-          const { data: roomProducts, error: roomError } = await supabase
-            .from('products')
-            .select('*')
-            .eq('room_type', roomType)
-            .neq('id', currentProductId)
-            .not('id', 'in', `(${data.map(p => p.id).join(',')})`)
-            .limit(4 - data.length);
-
-          if (roomError) {
-            console.error('Error fetching room products:', roomError);
-          } else if (roomProducts) {
-            data = [...data, ...roomProducts];
-          }
-        }
-
-        // If still not enough, get random products
-        if (data && data.length < 4) {
-          const { data: randomProducts, error: randomError } = await supabase
-            .from('products')
-            .select('*')
-            .neq('id', currentProductId)
-            .not('id', 'in', `(${data.map(p => p.id).join(',')})`)
-            .limit(4 - data.length);
-
-          if (randomError) {
-            console.error('Error fetching random products:', randomError);
-          } else if (randomProducts) {
-            data = [...data, ...randomProducts];
-          }
-        }
-
-        if (error) {
-          console.error('Error fetching suggested products:', error);
-        } else {
-          setProducts(data || []);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSuggestedProducts();
-  }, [currentProductId, category, roomType]);
+  let finalSuggested: Product[] = [];
+  if (categoryProducts.length >= 4) {
+    finalSuggested = categoryProducts.slice(0, 4);
+  } else if (categoryProducts.length + roomTypeProducts.length >= 4) {
+    finalSuggested = [...categoryProducts, ...roomTypeProducts].slice(0, 4);
+  } else {
+    finalSuggested = [...categoryProducts, ...roomTypeProducts, ...others].slice(0, 4);
+  }
 
   if (loading) {
     return (
@@ -97,7 +50,7 @@ const SuggestedProducts = ({ currentProductId, category, roomType }: SuggestedPr
     );
   }
 
-  if (products.length === 0) {
+  if (finalSuggested.length === 0) {
     return null;
   }
 
@@ -105,9 +58,8 @@ const SuggestedProducts = ({ currentProductId, category, roomType }: SuggestedPr
     <div className="space-y-4">
       <h3 className="text-xl font-semibold">You might also like</h3>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {products.map((product) => {
+        {finalSuggested.map((product) => {
           const displayImage = product.images && product.images.length > 0 ? product.images[0] : product.image;
-          
           return (
             <Link key={product.id} to={`/product/${product.id}`}>
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">

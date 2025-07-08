@@ -1,80 +1,117 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import api from '../services/api';
+import { log } from 'console';
+
+interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  isAdmin: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  isAdmin: boolean;
+  // signIn: (email: string, password: string) => Promise<{ error: any }>;
+  // signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  // signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    // Check localStorage for admin status
+    return localStorage.getItem('isAdmin') === 'true';
+  });
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    // Check for existing session on mount
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      api.get('/auth/me')
+        .then(response => {
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+          console.log('====================================');
+          console.log(response, " response ");
+          console.log('====================================');
+          // The backend sends user data directly in response.data
+          const userData = response.data;
+          setUser(userData);
+          setIsAdmin(userData.isAdmin === true);
+          localStorage.setItem('isAdmin', (userData.isAdmin === true).toString());
+        })
+        .catch(() => {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('isAdmin');
+          setUser(null);
+          setIsAdmin(false);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
       setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      setIsAdmin(false);
+    }
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response.data;
+      localStorage.setItem('authToken', token);
+      setUser(user);
+      setIsAdmin(user.isAdmin === true);
+      localStorage.setItem('isAdmin', (user.isAdmin === true).toString());
+      return { error: null };
+    } catch (error: any) {
+      return { error: error.response?.data?.message || 'An error occurred during sign in' };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        }
-      }
-    });
-    return { error };
+    try {
+      const response = await api.post('/auth/register', {
+        email,
+        password,
+        fullName,
+      });
+      const { token, user } = response.data;
+      localStorage.setItem('authToken', token);
+      setUser(user);
+      setIsAdmin(user.isAdmin === true);
+      localStorage.setItem('isAdmin', (user.isAdmin === true).toString());
+      return { error: null };
+    } catch (error: any) {
+      return { error: error.response?.data?.message || 'An error occurred during sign up' };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('isAdmin');
+      setUser(null);
+      setIsAdmin(false);
+    }
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      session,
       loading,
-      signIn,
-      signUp,
-      signOut
+      isAdmin,
+      // signIn,
+      // signUp,
+      // signOut
     }}>
       {children}
     </AuthContext.Provider>

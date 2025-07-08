@@ -74,10 +74,10 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
           {items.length > 0 && (
             <div className="border-t pt-4 space-y-4">
               <div className="flex justify-between items-center">
-                <span className="font-semibold">Total: ₹{getTotalPrice().toLocaleString()}</span>
+                <span className="font-semibold mb-2">Total: ₹{getTotalPrice().toLocaleString()}</span>
               </div>
               <Link to="/checkout" onClick={onClose}>
-                <Button className="w-full">Proceed to Checkout</Button>
+                <Button className="w-full mb-9">Proceed to Checkout</Button>
               </Link>
             </div>
           )}

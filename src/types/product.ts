@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string;
   name: string;
@@ -20,7 +19,7 @@ export interface Product {
   weight: string;
   category: string;
   description: string;
-  has_set_option?: boolean;
+  has_set_option?:   boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -36,6 +35,8 @@ export interface DatabaseOrder {
   status: 'new' | 'dispatched' | 'completed';
   created_at: string;
   updated_at: string;
+  payment_method: 'cod' | 'gateway';
+  payment_status: 'pending' | 'paid';
 }
 
 export interface OrderItem {

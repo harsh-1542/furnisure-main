@@ -1,104 +1,58 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, User, Mail, Phone, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { fetchAllCustomers } from "@/services/customerService";
+import { useAuth } from "@clerk/clerk-react";
 
 interface Customer {
-  id: string;
-  name: string;
+  _id: string;
+  clerkId: string;
   email: string;
-  phone: string;
-  address: string;
-  totalOrders: number;
-  totalSpent: number;
-  lastOrderDate: string;
-  status: "Active" | "Inactive" | "VIP";
+  fullName: string | null;
+  phoneNumber: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function CustomerManager() {
   const [searchTerm, setSearchTerm] = useState("");
-  
-  const [customers] = useState<Customer[]>([
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john.smith@email.com",
-      phone: "+1 (555) 123-4567",
-      address: "123 Main St, Springfield, IL 62701",
-      totalOrders: 8,
-      totalSpent: 4250,
-      lastOrderDate: "2024-01-15",
-      status: "VIP"
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "+1 (555) 987-6543",
-      address: "456 Oak Ave, Chicago, IL 60601",
-      totalOrders: 5,
-      totalSpent: 2150,
-      lastOrderDate: "2024-01-14",
-      status: "Active"
-    },
-    {
-      id: "3",
-      name: "Mike Brown",
-      email: "mike.brown@email.com",
-      phone: "+1 (555) 456-7890",
-      address: "789 Pine St, Austin, TX 73301",
-      totalOrders: 3,
-      totalSpent: 1200,
-      lastOrderDate: "2024-01-12",
-      status: "Active"
-    },
-    {
-      id: "4",
-      name: "Lisa Davis",
-      email: "lisa.davis@email.com",
-      phone: "+1 (555) 321-9876",
-      address: "321 Elm St, Miami, FL 33101",
-      totalOrders: 12,
-      totalSpent: 8900,
-      lastOrderDate: "2024-01-16",
-      status: "VIP"
-    },
-    {
-      id: "5",
-      name: "Robert Wilson",
-      email: "robert.w@email.com",
-      phone: "+1 (555) 654-3210",
-      address: "654 Cedar Rd, Seattle, WA 98101",
-      totalOrders: 1,
-      totalSpent: 350,
-      lastOrderDate: "2023-12-15",
-      status: "Inactive"
-    }
-  ]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setLoading(true);
+      try {
+        const token = await getToken();
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+        const data = await fetchAllCustomers(getToken);
+        setCustomers(data);
+        setError(null);
+      } catch (err) {
+        setError("Failed to fetch customers");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, [getToken]);
 
   const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm)
+    customer.phoneNumber.includes(searchTerm)
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "VIP":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "Active":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "Inactive":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null) => {
+    if (!name) return "?";
     return name
       .split(" ")
       .map(word => word[0])
@@ -106,11 +60,12 @@ export function CustomerManager() {
       .toUpperCase();
   };
 
+  // Customer stats are not available from backend, so set to NA
   const customerStats = {
-    total: customers.length,
-    vip: customers.filter(c => c.status === "VIP").length,
-    active: customers.filter(c => c.status === "Active").length,
-    inactive: customers.filter(c => c.status === "Inactive").length,
+    total: customers.length || 'NA',
+    vip: 'NA',
+    active: 'NA',
+    inactive: 'NA',
   };
 
   return (
@@ -121,6 +76,13 @@ export function CustomerManager() {
           <p className="text-gray-500">View and manage customer information</p>
         </div>
       </div>
+
+      {loading && (
+        <div className="text-center text-gray-500">Loading customers...</div>
+      )}
+      {error && (
+        <div className="text-center text-red-500">{error}</div>
+      )}
 
       {/* Customer Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -168,19 +130,19 @@ export function CustomerManager() {
       {/* Customers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCustomers.map((customer) => (
-          <Card key={customer.id} className="hover:shadow-lg transition-shadow duration-300">
+          <Card key={customer._id} className="hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-12 h-12">
                     <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {getInitials(customer.name)}
+                      {getInitials(customer.fullName)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle className="text-lg">{customer.name}</CardTitle>
-                    <Badge className={getStatusColor(customer.status)}>
-                      {customer.status}
+                    <CardTitle className="text-lg">{customer.fullName || 'NA'}</CardTitle>
+                    <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                      NA
                     </Badge>
                   </div>
                 </div>
@@ -195,26 +157,26 @@ export function CustomerManager() {
                 
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <Phone className="w-4 h-4" />
-                  <span>{customer.phone}</span>
+                  <span>{customer.phoneNumber}</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4" />
-                  <span className="line-clamp-2">{customer.address}</span>
+                  <span className="line-clamp-2">NA</span>
                 </div>
 
                 <div className="pt-3 border-t space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Total Orders:</span>
-                    <span className="font-medium">{customer.totalOrders}</span>
+                    <span className="font-medium">NA</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Total Spent:</span>
-                    <span className="font-medium text-green-600">${customer.totalSpent.toLocaleString()}</span>
+                    <span className="font-medium text-green-600">NA</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Last Order:</span>
-                    <span className="font-medium">{new Date(customer.lastOrderDate).toLocaleDateString()}</span>
+                    <span className="font-medium">NA</span>
                   </div>
                 </div>
               </div>

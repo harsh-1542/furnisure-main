@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, X, Loader2, GripVertical } from 'lucide-react';
+import api from '@/services/api';
 
 interface ImageUploaderProps {
   images: string[];
@@ -16,26 +16,23 @@ const ImageUploader = ({ images, onImagesChange, maxImages = 5 }: ImageUploaderP
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Upload image to backend
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        return null;
-      }
-
-      const { data } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
+      const formData = new FormData();
+      formData.append('file', file);
+      // Use the existing API endpoint
+      const response = await api.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data', // optional, Axios will set it if omitted
+        },
+      });
+      console.log(response.data);
+      // Backend returns { url: '/uploads/filename' }
+      // We need to construct the full URL
+       // Use your backend's base URL here!
+    const backendBaseUrl = 'http://localhost:5000'; // <-- change to your backend URL
+    return backendBaseUrl + response.data.url;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;

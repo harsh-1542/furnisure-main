@@ -1,17 +1,20 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useOrders } from '@/hooks/useOrders';
+import { useUser } from '@clerk/clerk-react';
 
 interface OrderContextType {
   orders: any[];
   addOrder: (order: any) => void;
   updateOrderStatus: (orderId: string, status: any) => void;
   getOrdersByStatus: (status: any) => any[];
+  loading: boolean;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
-  const orderHook = useOrders();
+  const { user } = useUser();
+  const orderHook = useOrders(!!user);
 
   // Wrapper to maintain compatibility
   const contextValue = {
@@ -19,6 +22,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     addOrder: (orderData: any) => orderHook.createOrder(orderData),
     updateOrderStatus: orderHook.updateOrderStatus,
     getOrdersByStatus: orderHook.getOrdersByStatus,
+    loading: orderHook.loading,
   };
 
   return (

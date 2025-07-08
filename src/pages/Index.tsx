@@ -7,11 +7,12 @@ import { motion, useScroll, useTransform, AnimatePresence, useSpring, useMotionV
 import useEmblaCarousel from 'embla-carousel-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ProcessSection from '@/components/ProcessSection';
-import { supabase } from '@/integrations/supabase/client';
+// import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/product';
 import { Loader2, Star, Award, Users, Truck, Shield, ChevronDown, Mail, Instagram, Facebook, Twitter, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import React from 'react';
+import { useProducts } from '@/hooks/useProducts';
 
 interface TestimonialProps {
   quote: string;
@@ -503,8 +504,8 @@ const NewsletterSection = () => {
 };
 
 const Index = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+  const { products, loading } = useProducts();
+  const featuredProducts = products.slice(0, 3);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -513,30 +514,6 @@ const Index = () => {
   
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
-
-  useEffect(() => {
-    const fetchFeaturedProducts = async () => {
-      try {
-        setLoadingProducts(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .limit(3);
-
-        if (error) {
-          console.error('Error fetching featured products:', error);
-        } else {
-          setFeaturedProducts(data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching featured products:', error);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
-    fetchFeaturedProducts();
-  }, []);
 
   const testimonials = [
     {
@@ -794,7 +771,7 @@ const Index = () => {
               </p>
             </motion.div>
 
-            {loadingProducts ? (
+            {loading ? (
               <div className="relative h-[200px] sm:h-[300px] md:h-[400px] flex items-center justify-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}

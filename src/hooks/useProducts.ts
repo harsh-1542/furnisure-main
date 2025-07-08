@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/product';
 import { useToast } from '@/hooks/use-toast';
+import { inventoryService, CreateProductDTO } from '@/services/inventoryService';
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -12,24 +12,10 @@ export const useProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching products:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch products",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      const data = await inventoryService.getAllProducts();
       setProducts(data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching products:', error);
       toast({
         title: "Error",
         description: "Failed to fetch products",
@@ -46,21 +32,9 @@ export const useProducts = () => {
 
   const addProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .insert([productData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error adding product:', error);
-        toast({
-          title: "Error",
-          description: "Failed to add product",
-          variant: "destructive",
-        });
-        return null;
-      }
+      // Map to CreateProductDTO, which may not have all Product fields
+      const createData: CreateProductDTO = { ...productData } as CreateProductDTO;
+      const data = await inventoryService.createProduct(createData);
 
       toast({
         title: "Success",
@@ -70,7 +44,7 @@ export const useProducts = () => {
       await fetchProducts();
       return data;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error adding product:', error);
       toast({
         title: "Error",
         description: "Failed to add product",
@@ -82,20 +56,9 @@ export const useProducts = () => {
 
   const updateProduct = async (id: string, productData: Partial<Product>) => {
     try {
-      const { error } = await supabase
-        .from('products')
-        .update(productData)
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error updating product:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update product",
-          variant: "destructive",
-        });
-        return false;
-      }
+      // Only send fields that are part of CreateProductDTO
+      const updateData = { ...productData } as Partial<CreateProductDTO>;
+      await inventoryService.updateProduct(id, updateData);
 
       toast({
         title: "Success",
@@ -105,7 +68,7 @@ export const useProducts = () => {
       await fetchProducts();
       return true;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error updating product:', error);
       toast({
         title: "Error",
         description: "Failed to update product",
@@ -117,20 +80,7 @@ export const useProducts = () => {
 
   const deleteProduct = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting product:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete product",
-          variant: "destructive",
-        });
-        return false;
-      }
+      await inventoryService.deleteProduct(id);
 
       toast({
         title: "Success",
@@ -140,7 +90,7 @@ export const useProducts = () => {
       await fetchProducts();
       return true;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error deleting product:', error);
       toast({
         title: "Error",
         description: "Failed to delete product",
