@@ -1,5 +1,6 @@
 
 import { Home, Package, ShoppingCart, Users, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -48,7 +49,7 @@ const menuItems = [
 
 export function AdminSidebar({ activeView, setActiveView }: AdminSidebarProps) {
   return (
-    <Sidebar className="border-r border-gray-200">
+    <Sidebar className="border-r border-gray-200 h-full flex flex-col">
       <SidebarHeader className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -60,7 +61,7 @@ export function AdminSidebar({ activeView, setActiveView }: AdminSidebarProps) {
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="flex-1">
         <SidebarGroup>
           <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -85,6 +86,16 @@ export function AdminSidebar({ activeView, setActiveView }: AdminSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <div className="p-6 mt-auto">
+        <Link
+          to="/"
+          className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 transition-colors w-full text-white font-medium justify-center"
+          title="Back to Home"
+        >
+          <Home className="w-5 h-5" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
     </Sidebar>
   );
 }

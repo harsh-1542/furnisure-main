@@ -21,18 +21,19 @@ const ImageUploader = ({ images, onImagesChange, maxImages = 5 }: ImageUploaderP
     try {
       const formData = new FormData();
       formData.append('file', file);
-      // Use the existing API endpoint
       const response = await api.post('/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data', // optional, Axios will set it if omitted
+          'Content-Type': 'multipart/form-data',
         },
       });
-      console.log(response.data);
-      // Backend returns { url: '/uploads/filename' }
-      // We need to construct the full URL
-       // Use your backend's base URL here!
-    const backendBaseUrl = 'http://localhost:5000'; // <-- change to your backend URL
-    return backendBaseUrl + response.data.url;
+      const url = response.data.url;
+      // If the URL is already absolute, return as is
+      if (/^https?:\/\//.test(url)) {
+        return url;
+      }
+      // Otherwise, prepend backend base URL
+      const backendBaseUrl = 'http://localhost:5000';
+      return backendBaseUrl + url;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;
