@@ -2,8 +2,9 @@ import axios from 'axios';
 
 // Define the base URL for your API
 // const API_URL = 'http://localhost:5000/api'; // Update this with your actual API URL
+const API_URL = import.meta.env.BACKENDURL;
 // const API_URL = 'http://192.168.83.219:5000/api'; // Update this with your actual API URL
-const API_URL = 'https://furnisure-backend.onrender.com/api'; // Update this with your actual API URL
+// const API_URL = 'https://furnisure-backend.onrender.com/api'; // Update this with your actual API URL
 
 // Create axios instance with default config
 const api = axios.create({

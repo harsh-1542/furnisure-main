@@ -27,13 +27,17 @@ const ImageUploader = ({ images, onImagesChange, maxImages = 5 }: ImageUploaderP
         },
       });
       const url = response.data.url;
+
+      // console.log('========url in new============================');
+      // console.log(url);
+      // console.log('====================================');
       // If the URL is already absolute, return as is
       if (/^https?:\/\//.test(url)) {
         return url;
       }
       // Otherwise, prepend backend base URL
-      const backendBaseUrl = 'http://localhost:5000';
-      return backendBaseUrl + url;
+      // const backendBaseUrl = 'http://localhost:5000';
+      return  url;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;
