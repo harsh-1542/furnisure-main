@@ -95,29 +95,30 @@ const CategoryShowcase = () => {
 
   return (
     <section className="py-12 md:py-20 bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="text-center mb-8 md:mb-16"
-        >
-          <motion.h2 
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            viewport={{ once: true }}
-            className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 font-domine"
-          >
-            Shop by Category
-          </motion.h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover our extensive collection organized by room and function
-          </p>
-        </motion.div>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        {/* Add overflow-x-auto for mobile */}
+        <div className="sm:hidden -mx-2 overflow-x-auto pb-2">
+          <div className="flex space-x-4 px-2">
+            {categories.map((category, index) => (
+              <div key={category.name} className="min-w-[140px] max-w-[180px] flex-shrink-0">
+                <div className="relative overflow-hidden rounded-xl aspect-square mb-2 shadow-lg">
+                  <img
+                    src={category.image}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/20" />
+                  <div className="absolute bottom-3 left-3 text-white">
+                    <h3 className="font-semibold text-base">{category.name}</h3>
+                    <p className="text-xs opacity-90">{category.count}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Keep grid for sm+ */}
+        <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
           {categories.map((category, index) => (
             <motion.div
               key={category.name}
@@ -269,7 +270,7 @@ const OurLatestProject = () => {
 
   return (
     <section className="">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -333,7 +334,27 @@ const OurLatestProject = () => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="sm:hidden -mx-2 overflow-x-auto pb-2">
+          <div className="flex space-x-4 px-2">
+            {filteredProjects.map((project) => (
+              <div key={project.id} className="min-w-[240px] max-w-[320px] flex-shrink-0">
+                <img 
+                  src={project.image} 
+                  alt={project.title} 
+                  className="w-full h-48 object-cover rounded-2xl" 
+                />
+                <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end p-4 rounded-b-2xl -mt-8 relative z-10">
+                  <div className="text-white">
+                    <p className="text-xs font-light uppercase opacity-80">{project.category}</p>
+                    <h3 className="text-lg font-bold font-domine">{project.title}</h3>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Keep grid for sm+ */}
+        <div className="hidden sm:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence mode="wait">
             {filteredProjects.map((project) => (
               <motion.div
@@ -561,7 +582,7 @@ const Index = () => {
   }, [emblaApi, setScrollSnaps, onSelect]);
 
   return (
-    <div className="min-h-screen p-2 sm:p-4">
+    <div className="min-h-screen p-2 overflow-x-hidden">
       {/* Enhanced Hero Section with Parallax */}
       <section 
         ref={heroRef}
@@ -870,7 +891,7 @@ const Index = () => {
                 <AnimatePresence mode="wait">
                   {testimonials.map((testimonial, index) => (
                     <motion.div
-                      className="flex-[0_0_100%] min-w-0 px-4 sm:px-8"
+                      className="flex-[0_0_100%] min-w-0 px-2 sm:px-8"
                       key={index}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}

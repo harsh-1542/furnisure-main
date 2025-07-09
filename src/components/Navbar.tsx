@@ -186,9 +186,9 @@ const Navbar = () => {
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </Button>
-                    <div className="mt-2">
+                    {/* <div className="mt-2">
                       <UserButton afterSignOutUrl="/" />
-                    </div>
+                    </div> */}
                   </SignedIn>
                   <SignedOut>
                     <SignInButton mode="modal">
