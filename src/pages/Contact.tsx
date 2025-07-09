@@ -45,7 +45,7 @@ const Contact = () => {
       {/* Hero Section */}
       <section className="relative h-[40vh] flex items-center justify-center overflow-hidden rounded-3xl px-6 sm:px-8 lg:px-10 mb-8">
         <img
-          src="public/images/contacts-hero.jpg"
+          src="/images/contacts-hero.jpg"
           alt="Contact Hero"
           className="absolute w-full h-full object-cover"
         />

@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import { Product } from '@/types/product';
 import { useToast } from '@/hooks/use-toast';
 import { inventoryService, CreateProductDTO } from '@/services/inventoryService';
+import { useAuth } from '@clerk/clerk-react';
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { getToken } = useAuth();
 
   const fetchProducts = async () => {
     try {
@@ -34,7 +36,7 @@ export const useProducts = () => {
     try {
       // Map to CreateProductDTO, which may not have all Product fields
       const createData: CreateProductDTO = { ...productData } as CreateProductDTO;
-      const data = await inventoryService.createProduct(createData);
+      const data = await inventoryService.createProduct(createData, getToken);
 
       toast({
         title: "Success",
@@ -58,7 +60,7 @@ export const useProducts = () => {
     try {
       // Only send fields that are part of CreateProductDTO
       const updateData = { ...productData } as Partial<CreateProductDTO>;
-      await inventoryService.updateProduct(id, updateData);
+      await inventoryService.updateProduct(id, updateData, getToken);
 
       toast({
         title: "Success",
@@ -80,7 +82,7 @@ export const useProducts = () => {
 
   const deleteProduct = async (id: string) => {
     try {
-      await inventoryService.deleteProduct(id);
+      await inventoryService.deleteProduct(id, getToken);
 
       toast({
         title: "Success",

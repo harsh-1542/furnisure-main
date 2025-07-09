@@ -24,6 +24,7 @@ const BrowseProducts = () => {
     offset: ["start start", "end start"]
   });
 
+  
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
 
@@ -108,7 +109,7 @@ const BrowseProducts = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-1">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background p-2">
       {/* Hero Section */}
       <section
         ref={heroRef}
