@@ -11,6 +11,33 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, MapPin, CreditCard, Banknote } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
+import api, { authApiRequest } from '@/services/api';
+import { useAuth } from '@clerk/clerk-react';
+
+interface CheckoutFormData {
+  address: string;
+  pincode: string;
+  delivery_instructions: string;
+}
+
+interface OrderItem {
+  product_id: string;
+  quantity: number;
+  price: number;
+  selected_set: boolean;
+}
+
+interface PaymentResult {
+  payment_id: string;
+  order_id: string;
+  payment_error_message?: string | null;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
 
 const Checkout = () => {
   const { items, clearCart } = useCart();
@@ -18,8 +45,11 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isSignedIn } = useUser();
+  const { getToken } = useAuth();
   const [errors, setErrors] = useState({ pincode: '' });
   const [ipAddress, setIpAddress] = useState('');
+  // Loading overlay for payment
+  const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
 
   // Extract user details from Clerk
   const customerName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
@@ -27,13 +57,13 @@ const Checkout = () => {
   const phone = user?.primaryPhoneNumber?.phoneNumber || '';
   const userId = user?.id || '';
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CheckoutFormData>({
     address: '',
     pincode: '',
     delivery_instructions: '',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'gateway'>('cod');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -45,27 +75,135 @@ const Checkout = () => {
       .catch(() => setIpAddress(''));
   }, []);
 
-  const handlePaymentGateway = async () => {
-    // Placeholder for payment gateway integration
-    // This is where you would integrate with Stripe, Razorpay, or other payment providers
-    toast({
-      title: "Payment Gateway",
-      description: "Payment gateway integration will be implemented here",
-    });
-    
-    // For now, we'll simulate a successful payment
-    return true;
+  const handlePaymentGateway = async (): Promise<PaymentResult | false> => {
+    try {
+      // 1. Create order on backend
+      setIsRazorpayLoading(true);
+      const orderRes = await authApiRequest(
+        'post',
+        '/payment/order',
+        getToken,
+        {
+          amount: totalAmount,
+          currency: 'INR',
+          receipt: `receipt_order_${Date.now()}`,
+        }
+      );
+      const orderData = orderRes.data;
+      if (!orderData.success) throw new Error('Failed to create Razorpay order');
+
+      // 2. Open Razorpay checkout
+      return new Promise((resolve, reject) => {
+        setIsRazorpayLoading(true);
+        const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+        if (!razorpayKey) { 
+          toast({
+            title: "Payment Error",
+            description: "Razorpay key is not configured. Please contact support.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          reject(new Error('Razorpay key not configured'));
+          return;
+        }
+        const options = {
+          key: razorpayKey, // Make sure this env variable is set
+          amount: orderData.order.amount,
+          currency: orderData.order.currency,
+          name: 'Furnisure',
+          description: 'Order Payment',
+          order_id: orderData.order.id,
+          handler: async function (response) {
+            setIsRazorpayLoading(true);
+            // 3. Verify payment on backend
+            const verifyRes = await authApiRequest(
+              'post',
+              '/payment/verify',
+              getToken,
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }
+            );
+            const verifyData = verifyRes.data;
+            if (verifyData.success) {
+              setIsRazorpayLoading(false);
+              toast({
+                title: "Payment Successful",
+                description: "Your payment was successful!",
+              });
+              resolve({
+                payment_id: response.razorpay_payment_id,
+                order_id: response.razorpay_order_id,
+                payment_error_message: null,
+              });
+            } else {
+              setIsRazorpayLoading(false);
+              toast({
+                title: "Payment Verification Failed",
+                description: "Payment could not be verified.",
+                variant: "destructive",
+              });
+              reject({
+                payment_id: response.razorpay_payment_id,
+                order_id: response.razorpay_order_id,
+                payment_error_message: verifyData.payment_error_message || verifyData.message || 'Verification failed',
+              });
+            }
+          },
+          prefill: {
+            name: customerName,
+            email: email,
+            contact: phone,
+          },
+          theme: { color: "#bb9a65" },
+        };
+
+        if (typeof window.Razorpay !== 'function') {
+          toast({
+            title: "Payment Error",
+            description: "Razorpay failed to load. Please disable ad blockers or try again later.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          reject(new Error('Razorpay not loaded'));
+          return;
+        }
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      });
+    } catch (error) {
+      toast({
+        title: "Payment Error",
+        description: error.message || "Payment failed. Please try again.",
+        variant: "destructive",
+      });
+      setIsRazorpayLoading(false);
+      return false;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    let firstInvalidField: string | null = null;
+    const newErrors = { ...errors };
     if (!/^[1-9][0-9]{5}$/.test(formData.pincode)) {
-      setErrors({ ...errors, pincode: 'Invalid Indian pincode' });
+      newErrors.pincode = 'Invalid Indian pincode';
+      if (!firstInvalidField) firstInvalidField = 'pincode';
+    }
+    setErrors(newErrors);
+    if (firstInvalidField) {
       setIsSubmitting(false);
+      // Focus and scroll to the first invalid field
+      const el = document.getElementById(firstInvalidField);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (el as HTMLElement).focus();
+      }
       return;
     }
-    
 
     if (items.length === 0) {
       toast({
@@ -78,43 +216,72 @@ const Checkout = () => {
 
     setIsSubmitting(true);
 
+    const orderItems: OrderItem[] = items.map(item => ({
+      product_id: item.id,
+      quantity: item.quantity,
+      price: item.price,
+      selected_set: item.selectedSet || false,
+    }));
+
+    let paymentReferenceId: string | null = null;
+    let razorpayOrderId: string | null = null;
+    let paymentErrorMessage: string | null = null;
+    let paymentStatus: 'pending' | 'paid' | 'failed' | 'unverified' = 'pending';
+    const currentPaymentMethod: 'cod' | 'gateway' = paymentMethod;
+
     try {
       // Handle payment gateway flow
-      if (paymentMethod === 'gateway') {
-        const paymentSuccess = await handlePaymentGateway();
-        if (!paymentSuccess) {
-          setIsSubmitting(false);
-          return;
+      if (currentPaymentMethod === 'gateway') {
+        try {
+          const paymentResult = await handlePaymentGateway();
+          if (!paymentResult) {
+            paymentStatus = 'failed';
+            // Try to get Razorpay order id from the last attempt if possible
+            // (You may need to refactor handlePaymentGateway to return this on failure)
+            // For now, leave as null if not available
+          } else {
+            paymentReferenceId = paymentResult.payment_id;
+            razorpayOrderId = paymentResult.order_id;
+            paymentErrorMessage = paymentResult.payment_error_message || null;
+            paymentStatus = 'paid';
+          }
+        } catch (gatewayError: any) {
+          paymentStatus = 'failed';
+          paymentReferenceId = gatewayError?.payment_id || null;
+          razorpayOrderId = gatewayError?.order_id || null;
+          paymentErrorMessage = gatewayError?.payment_error_message || (gatewayError?.message ?? 'Payment failed');
         }
       }
 
-      const orderItems = items.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-        selected_set: item.selectedSet || false,
-      }));
-
-      const order = await createOrder({
-        customer_name: customerName,
-        email,
-        phone,
-        ...formData,
-        total_amount: totalAmount,
-        payment_method: paymentMethod as 'cod' | 'gateway',
-        payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
-        payment_reference_id: paymentMethod === 'cod' ? null : 'demo-gateway-ref', // Placeholder for now
-        user_id: userId || undefined,
-        items: orderItems,
-        ip_address: ipAddress,
-      });
+      // Always store the order, even if payment failed (except in development for failed payments)
+      let order = null;
+      const isDev = import.meta.env.VITE_DEV;
+      if (!(isDev && paymentStatus === 'failed')) {
+        order = await createOrder({
+          customer_name: customerName,
+          email,
+          phone,
+          ...formData,
+          total_amount: totalAmount,
+          payment_method: currentPaymentMethod,
+          payment_status: paymentStatus as any, // allow 'failed' and 'unverified' for backend
+          payment_reference_id: paymentReferenceId,
+          razorpay_order_id: razorpayOrderId,
+          payment_error_message: paymentErrorMessage,
+          user_id: userId || undefined,
+          items: orderItems,
+          ip_address: ipAddress,
+        });
+      }
 
       if (order) {
         clearCart();
-        const paymentMessage = paymentMethod === 'cod' 
-          ? "Your order has been placed successfully! Pay on delivery."
-          : "Your order has been placed and paid successfully!";
-        
+        const paymentMessage = paymentStatus === 'paid'
+          ? "Your order has been placed and paid successfully!"
+          : paymentStatus === 'failed'
+            ? "Order was created but payment failed. Please contact support or try again."
+            : "Your order has been placed successfully! Pay on delivery.";
+
         toast({
           title: "Order placed successfully!",
           description: paymentMessage,
@@ -165,6 +332,17 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen py-8 bg-gradient-to-br from-background via-muted/20 to-background">
+      {isRazorpayLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg p-8 flex flex-col items-center shadow-lg">
+            <svg className="animate-spin h-8 w-8 text-[#bb9a65] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span className="text-[#bb9a65] font-semibold">Processing Payment...</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-4">Checkout</h1>
@@ -221,28 +399,22 @@ const Checkout = () => {
                     <Label htmlFor="pincode">Pincode</Label>
                     <Input
                       id="pincode"
-                      type="text" // Use "text" to control exactly what can be typed
-                      inputMode="numeric" // Brings up number keyboard on mobile
+                      type="text"
+                      inputMode="numeric"
                       pattern="[1-9][0-9]{5}"
                       maxLength={6}
                       value={formData.pincode}
                       onChange={(e) => {
                         const value = e.target.value;
-
-                        // Only allow numeric input
                         if (!/^\d*$/.test(value)) return;
-
-                        // Limit to 6 digits
                         if (value.length > 6) return;
-
                         setFormData({ ...formData, pincode: value });
-
                         const isValid = /^[1-9][0-9]{5}$/.test(value);
                         setErrors({ ...errors, pincode: isValid || value === '' ? '' : 'Invalid pincode' });
                       }}
                       required
                       placeholder="Enter your pincode for delivery"
-                      className="bg-background/50"
+                      className={`bg-background/50 ${errors.pincode ? 'border border-red-500' : ''}`}
                     />
                     {errors.pincode && (
                       <p className="text-sm text-red-500 mt-1">{errors.pincode}</p>
@@ -287,7 +459,7 @@ const Checkout = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
+                <RadioGroup value={paymentMethod} onValueChange={v => setPaymentMethod(v as 'cod' | 'gateway')} className="space-y-4">
                   <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                     <RadioGroupItem value="cod" id="cod" />
                     <Label htmlFor="cod" className="flex items-center cursor-pointer flex-1">

@@ -64,7 +64,7 @@ export const useOrders = (enabled: boolean = true) => {
     pincode: string;
     total_amount: number;
     payment_method: 'cod' | 'gateway';
-    payment_status: 'pending' | 'paid';
+    payment_status: 'pending' | 'paid' | 'failed' | 'unverified';
     items: Array<{
       product_id: string;
       quantity: number;
@@ -73,8 +73,10 @@ export const useOrders = (enabled: boolean = true) => {
     }>;
     delivery_instructions?: string;
     payment_reference_id?: string | null;
+    razorpay_order_id?: string | null;
     user_id?: string;
     ip_address: string;
+    payment_error_message?: string | null;
   }) => {
     try {
       const order = await orderService.createOrder(orderData, getToken);

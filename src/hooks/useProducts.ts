@@ -5,17 +5,31 @@ import { useToast } from '@/hooks/use-toast';
 import { inventoryService, CreateProductDTO } from '@/services/inventoryService';
 import { useAuth } from '@clerk/clerk-react';
 
+let _cachedProducts: Product[] | null = null;
+
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { getToken } = useAuth();
 
+
+
+
   const fetchProducts = async () => {
+
+
+    // if (_cachedProducts) {
+    //   setProducts(_cachedProducts);
+    //   setLoading(false);
+    //   return;
+    // }
+
     try {
       setLoading(true);
       const data = await inventoryService.getAllProducts();
       setProducts(data || []);
+      _cachedProducts = data;
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -32,6 +46,11 @@ export const useProducts = () => {
     fetchProducts();
   }, []);
 
+  
+  const clearCache = () => {
+    _cachedProducts = null;
+  };
+
   const addProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       // Map to CreateProductDTO, which may not have all Product fields
@@ -42,7 +61,7 @@ export const useProducts = () => {
         title: "Success",
         description: "Product added successfully",
       });
-
+      clearCache();
       await fetchProducts();
       return data;
     } catch (error) {
@@ -66,7 +85,7 @@ export const useProducts = () => {
         title: "Success",
         description: "Product updated successfully",
       });
-
+      clearCache();
       await fetchProducts();
       return true;
     } catch (error) {
@@ -89,6 +108,7 @@ export const useProducts = () => {
         description: "Product deleted successfully",
       });
 
+      clearCache();
       await fetchProducts();
       return true;
     } catch (error) {
@@ -108,6 +128,7 @@ export const useProducts = () => {
     fetchProducts,
     addProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    
   };
 };

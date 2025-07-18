@@ -182,7 +182,7 @@ export function OrderManager() {
       {/* Search and Filters */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -210,6 +210,7 @@ export function OrderManager() {
       </Card>
 
       {/* Orders List */}
+      <div className="overflow-x-auto">
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading orders...</div>
       ) : (
@@ -343,6 +344,7 @@ export function OrderManager() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

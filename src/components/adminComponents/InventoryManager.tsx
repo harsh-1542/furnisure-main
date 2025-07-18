@@ -64,6 +64,7 @@ export function InventoryManager() {
       toast.error("Failed to fetch products");
       console.error("Error fetching products:", error);
     } finally {
+      
       setIsLoading(false);
     }
   };
@@ -206,7 +207,8 @@ export function InventoryManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Top bar responsive */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
         <h2 className="text-2xl font-bold">Inventory Management</h2>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
